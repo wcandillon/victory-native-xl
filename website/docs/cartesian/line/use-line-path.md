@@ -41,7 +41,7 @@ The `points` argument is a `PointsArray` array used to generate the line's path.
 
 The `options` argument object has the following fields:
 
-- `curveType: CurveType`: the type of curve to use for the path, powered by `d3-shape`. The options are:
+- `curveType: CurveType`: the type of curve to use for the path. The curves are those of `d3-shape`. The options are:
   - `linear` (default)
   - `natural`
   - `bumpX`
@@ -61,3 +61,27 @@ The `options` argument object has the following fields:
 ### `path`
 
 The `SkPath` path object to be used as the `path` argument of a Skia `<Path />` element.
+
+## Building the path on the UI thread
+
+`useLinePath` builds its path on the JS thread, when the component renders. The function it uses, `buildLinePath`, is exported too. It is a [worklet](https://docs.swmansion.com/react-native-worklets/docs/fundamentals/glossary#worklet), so it can also run on the UI thread, where a path can follow a shared value without waiting for the JS thread:
+
+```tsx
+import { Path } from "react-native-skia";
+import { useDerivedValue, type SharedValue } from "react-native-reanimated";
+import { buildLinePath, type PathPoint } from "victory-native";
+
+function LiveLine({ points }: { points: SharedValue<PathPoint[]> }) {
+  // 👇 runs on the UI thread every time `points` changes.
+  const path = useDerivedValue(() =>
+    buildLinePath(points.value, { curveType: "monotoneX" }),
+  );
+  return <Path path={path} style="stroke" strokeWidth={3} color="red" />;
+}
+```
+
+```ts
+buildLinePath(points: PathPoint[], options?: { curveType?: CurveType; connectMissingData?: boolean }): SkPath
+```
+
+A `PathPoint` is an `{ x: number; y: number | null | undefined }` object in _canvas coordinates_, where `y` is missing for a gap in the data. A `PointsArray` is an array of such points, and `options` are those of `useLinePath`.

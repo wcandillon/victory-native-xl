@@ -31,6 +31,13 @@ export {
 } from "./types";
 export { type CurveType } from "./cartesian/utils/curves";
 export {
+  buildLinePath,
+  buildAreaPath,
+  type PathPoint,
+  type LinePathOptions,
+  type AreaPathOptions,
+} from "./cartesian/utils/chartPaths";
+export {
   createRoundedRectPath,
   type RoundedCorners,
 } from "./utils/createRoundedRectPath";

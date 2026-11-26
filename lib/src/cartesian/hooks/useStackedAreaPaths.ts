@@ -121,7 +121,7 @@ export const useStackedAreaPaths = ({
         addAreaToPathBuilder(
           builder,
           stackedPoints,
-          (i) => y0 - (layerOffsets?.[i] ?? 0),
+          stackedPoints.map((_, i) => y0 - (layerOffsets?.[i] ?? 0)),
           curveType,
         );
       });

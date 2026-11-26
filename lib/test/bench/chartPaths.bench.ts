@@ -1,9 +1,9 @@
 /**
  * Microbenchmark for line and area path construction.
  *
- * Compares the current path builders with the SVG string round trip they
- * replaced (d3-shape prints an SVG path, Skia parses it back), which is kept
- * here as the baseline.
+ * Compares the path builders with the SVG string round trip they replaced
+ * (d3-shape prints an SVG path, Skia parses it back), which is kept here as
+ * the baseline.
  *
  * Run with `yarn workspace victory-native bench`. This runs CanvasKit (Wasm)
  * in Node, not native Skia over JSI on Hermes, so read the ratios rather than
@@ -17,7 +17,8 @@ import {
   addLineToPathBuilder,
   type DefinedPoint,
 } from "../../src/cartesian/utils/chartPaths";
-import { CURVES, type CurveType } from "../../src/cartesian/utils/curves";
+import { type CurveType } from "../../src/cartesian/utils/curves";
+import { D3_CURVES as CURVES } from "../utils/d3Curves";
 
 const SIZES = [12, 100, 1000, 5000];
 const BENCHED_CURVES: CurveType[] = ["linear", "monotoneX"];
@@ -32,11 +33,10 @@ const makePoints = (count: number): DefinedPoint[] => {
   }));
 };
 
-const baseline = () => BASELINE;
-
 describe.each(SIZES)("%i points", (count) => {
   const points = makePoints(count);
   const tuples = points.map(({ x, y }): [number, number] => [x, y]);
+  const baseline = points.map(() => BASELINE);
 
   describe.each(BENCHED_CURVES)("%s line", (curveType) => {
     bench("SVG string round trip (baseline)", () => {

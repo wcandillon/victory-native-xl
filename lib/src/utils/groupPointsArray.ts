@@ -1,11 +1,14 @@
-import { type PointsArray } from "../types";
+import { type MaybeNumber } from "../types";
 
 /**
  * Takes a PointsArray and chunks it into groups, breaking at non-numerical y-values
  */
-export const groupPointsArray = (points: PointsArray): PointsArray[] => {
-  const groups: PointsArray[] = [];
-  let group: PointsArray = [];
+export const groupPointsArray = <Point extends { y: MaybeNumber }>(
+  points: Point[],
+): Point[][] => {
+  "worklet";
+  const groups: Point[][] = [];
+  let group: Point[] = [];
 
   for (const point of points) {
     if (typeof point.y !== "number") {

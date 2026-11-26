@@ -6,9 +6,7 @@ import {
   addLineToPathBuilder,
   type DefinedPoint,
 } from "../../src/cartesian/utils/chartPaths";
-import { CURVES, type CurveType } from "../../src/cartesian/utils/curves";
-
-const CURVE_TYPES = Object.keys(CURVES) as CurveType[];
+import { CURVE_TYPES, D3_CURVES as CURVES } from "../utils/d3Curves";
 
 // Deterministic pseudo random numbers, so failures are reproducible.
 const makeRandom = (seed: number) => () =>
@@ -154,7 +152,7 @@ describe("addAreaToPathBuilder", () => {
         addAreaToPathBuilder(
           builder,
           points,
-          slantedBaseline,
+          points.map((_, i) => slantedBaseline(i)),
           "linear",
           useAddPoly,
         );
@@ -173,7 +171,12 @@ describe("addAreaToPathBuilder", () => {
       (name) => {
         const points = DATASETS[name]!;
         const builder = Skia.PathBuilder.Make();
-        addAreaToPathBuilder(builder, points, () => BASELINE, curveType);
+        addAreaToPathBuilder(
+          builder,
+          points,
+          points.map(() => BASELINE),
+          curveType,
+        );
 
         expectSameCommands(
           builder.detach().toCmds(),
@@ -189,7 +192,12 @@ describe("addAreaToPathBuilder", () => {
       (name) => {
         const points = DATASETS[name]!;
         const builder = Skia.PathBuilder.Make();
-        addAreaToPathBuilder(builder, points, slantedBaseline, curveType);
+        addAreaToPathBuilder(
+          builder,
+          points,
+          points.map((_, i) => slantedBaseline(i)),
+          curveType,
+        );
 
         expectSameCommands(
           builder.detach().toCmds(),
@@ -207,7 +215,12 @@ describe("addAreaToPathBuilder", () => {
     "skips a %s run with a non-finite baseline",
     (curveType) => {
       const builder = Skia.PathBuilder.Make();
-      addAreaToPathBuilder(builder, makePoints(5), () => NaN, curveType);
+      addAreaToPathBuilder(
+        builder,
+        makePoints(5),
+        makePoints(5).map(() => NaN),
+        curveType,
+      );
 
       expect(builder.isEmpty()).toBe(true);
     },
