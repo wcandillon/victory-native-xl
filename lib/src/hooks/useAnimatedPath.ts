@@ -1,4 +1,4 @@
-import { Skia, type SkPath } from "react-native-skia";
+import { type SkPath } from "react-native-skia";
 import * as React from "react";
 import {
   useDerivedValue,
@@ -10,7 +10,11 @@ import {
   type WithSpringConfig,
   type WithTimingConfig,
 } from "react-native-reanimated";
-import { interpolatePath } from "./interpolatePath";
+import {
+  getPathAtProgress,
+  makePathTransition,
+  type PathTransition,
+} from "./pathTransition";
 
 export type PathAnimationConfig =
   | ({ type: "timing" } & WithTimingConfig)
@@ -41,20 +45,31 @@ export const useAnimatedPath = (
 ) => {
   const progressSV = useSharedValue(0);
 
-  // fromPathSV stores the SkPath object we are animating FROM. Initialized with a copy.
-  const fromPathSV = useSharedValue<SkPath>(currentPathProp.copy());
-  // targetPathSV stores the SkPath object we are animating TO. Initialized with a copy.
-  const targetPathSV = useSharedValue<SkPath>(currentPathProp.copy());
+  // The transition being played. Paths are immutable, so they are shared with
+  // the caller instead of being copied.
+  const transitionSV = useSharedValue<PathTransition>({
+    from: currentPathProp,
+    to: currentPathProp,
+    tween: null,
+  });
 
-  // This effect synchronizes prop changes to our shared values and triggers animations.
+  // The path we are animating to, or showing once the animation is over.
+  const targetPathRef = React.useRef(currentPathProp);
+
+  // This effect starts a new transition when the path changes.
   React.useEffect(() => {
-    // The current `targetPathSV.value` was the target of the *previous* animation (or initial state).
-    // This becomes the starting point for our new animation.
-    // Ensure we use .copy() to avoid shared mutable object issues.
-    fromPathSV.value = targetPathSV.value.copy();
+    // The target of the previous animation (or the initial path) is the
+    // starting point of the new one.
+    const fromPath = targetPathRef.current;
+    if (fromPath === currentPathProp) {
+      // Nothing to animate to: the component only rendered again.
+      return;
+    }
+    targetPathRef.current = currentPathProp;
 
-    // The new `currentPathProp` is our new animation target.
-    targetPathSV.value = currentPathProp.copy();
+    // Whether, and how, the two paths can be interpolated is decided here,
+    // once, instead of on every frame of the animation.
+    transitionSV.value = makePathTransition(fromPath, currentPathProp);
 
     // Reset progress and start animation
     progressSV.value = 0;
@@ -68,63 +83,10 @@ export const useAnimatedPath = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPathProp, animConfig]);
 
-  const animatedPath = useDerivedValue<SkPath>(() => {
-    const t = progressSV.value;
-    const from = fromPathSV.value;
-    const to = targetPathSV.value;
-
-    if (t === 0) {
-      return from;
-    }
-    if (t === 1) {
-      return to;
-    }
-
-    // 1. Try direct Skia interpolation first (most performant and reliable)
-    if (to && from && to.isInterpolatable(from)) {
-      const interpolated = interpolatePath(from, to, t);
-      if (interpolated) {
-        return interpolated;
-      }
-    }
-
-    // 2. Fallback: SVG string manipulation with precision normalization
-    // This was identified as potentially problematic for pie charts if direct interpolation failed.
-    const normalizePrecision = (svgPathStr: string): string =>
-      svgPathStr.replace(/(\d+\.\d+)/g, (match) =>
-        parseFloat(match).toFixed(3),
-      );
-
-    const toSVG = to?.toSVGString();
-    const fromSVG = from?.toSVGString();
-
-    if (toSVG && fromSVG) {
-      const toNormalized = Skia.Path.MakeFromSVGString(
-        normalizePrecision(toSVG),
-      );
-      const fromNormalized = Skia.Path.MakeFromSVGString(
-        normalizePrecision(fromSVG),
-      );
-
-      if (
-        toNormalized &&
-        fromNormalized &&
-        toNormalized.isInterpolatable(fromNormalized)
-      ) {
-        const interpolatedNormalized = interpolatePath(
-          fromNormalized,
-          toNormalized,
-          t,
-        );
-        if (interpolatedNormalized) {
-          return interpolatedNormalized;
-        }
-      }
-    }
-
-    // 3. Final fallback: if all interpolation fails, snap to the closest path
-    return t > 0.5 ? to : from;
-  }, []);
+  const animatedPath = useDerivedValue<SkPath>(
+    () => getPathAtProgress(transitionSV.value, progressSV.value),
+    [],
+  );
 
   return animatedPath;
 };
