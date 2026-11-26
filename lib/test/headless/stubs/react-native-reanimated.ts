@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+// Like Reanimated, the same shared value for the lifetime of the component.
 export function useSharedValue<T>(init: T): { value: T } {
-  return { value: init };
+  const [sharedValue] = useState(() => ({ value: init }));
+  return sharedValue;
 }
 
 export function useDerivedValue<T>(fn: () => T): { value: T } {
@@ -28,7 +30,17 @@ export function withDecay(): number {
   return 0;
 }
 
-export function useAnimatedReaction(): void {}
+// Like Reanimated, the reaction runs once when it is set up, without a
+// previous value. Changes to shared values are not tracked here.
+export function useAnimatedReaction<T>(
+  prepare: () => T,
+  react: (current: T, previous: T | null) => void,
+): void {
+  useEffect(() => {
+    react(prepare(), null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
 
 export function runOnJS<T extends (...args: never[]) => unknown>(fn: T): T {
   return fn;

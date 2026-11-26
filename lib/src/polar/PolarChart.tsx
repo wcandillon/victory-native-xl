@@ -63,13 +63,15 @@ const PolarChartBase = (
   } = props;
   const bridge = useContextBridge(contexts);
 
-  let composed = Gesture.Race();
-  if (transformState) {
-    composed = Gesture.Race(
-      composed,
+  // Without gestures to detect, there is no need for a view over the canvas.
+  let gestureOverlay: React.ReactNode;
+  if (!isHeadless && transformState) {
+    const composed = Gesture.Race(
+      Gesture.Race(),
       pinchTransformGesture(transformState),
       panTransformGesture(transformState),
     );
+    gestureOverlay = <GestureHandler gesture={composed} />;
   }
 
   const chartContent = (
@@ -88,9 +90,7 @@ const PolarChartBase = (
       containerStyle={containerStyle}
       canvasStyle={canvasStyle}
       chartContent={bridge(chartContent)}
-      gestureOverlay={
-        isHeadless ? undefined : <GestureHandler gesture={composed} />
-      }
+      gestureOverlay={gestureOverlay}
     />
   );
 };

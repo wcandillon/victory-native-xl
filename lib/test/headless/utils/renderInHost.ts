@@ -64,6 +64,19 @@ const hostReconciler = ReactReconciler({
   resetFormInstance: () => {},
 });
 
+/**
+ * Lets the work that follows a commit run: effects, the canvas updates they
+ * trigger, and the renders that follow from state set in those effects. Both
+ * renderers schedule that work as tasks, so a few turns of the event loop are
+ * enough.
+ */
+const settle = async () => {
+  for (let turn = 0; turn < 10; turn++) {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+};
+
 export type HostRoot = {
   render: (element: ReactNode) => Promise<void>;
   /**
@@ -76,7 +89,7 @@ export type HostRoot = {
 
 /**
  * Creates a root in the stand-in for the app's renderer. `render` resolves
- * once the element, the canvases it mounts, and their effects are committed.
+ * once the element is committed and the work that follows has settled.
  */
 export const createHostRoot = (): HostRoot => {
   const CONCURRENT_ROOT = 1;
@@ -91,26 +104,25 @@ export const createHostRoot = (): HostRoot => {
     null,
   );
 
-  const render = (element: ReactNode) =>
-    new Promise<void>((resolve) => {
-      hostReconciler.updateContainer(element, root, null, () => {
-        // Passive effects, and the canvas updates they trigger, come next.
-        setTimeout(resolve, 0);
-      });
+  const render = async (element: ReactNode) => {
+    await new Promise<void>((resolve) => {
+      hostReconciler.updateContainer(element, root, null, () => resolve());
     });
+    await settle();
+  };
 
-  const renderInBackground = (element: ReactNode) =>
-    new Promise<void>((resolve) => {
+  const renderInBackground = async (element: ReactNode) => {
+    await new Promise<void>((resolve) => {
       const previousPriority = currentUpdatePriority;
       currentUpdatePriority = IdleEventPriority;
       try {
-        hostReconciler.updateContainer(element, root, null, () => {
-          setTimeout(resolve, 0);
-        });
+        hostReconciler.updateContainer(element, root, null, () => resolve());
       } finally {
         currentUpdatePriority = previousPriority;
       }
     });
+    await settle();
+  };
 
   return { render, renderInBackground, unmount: () => render(null) };
 };

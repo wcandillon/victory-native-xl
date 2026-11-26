@@ -1,10 +1,6 @@
-import {
-  makeMutable,
-  type SharedValue,
-  useSharedValue,
-} from "react-native-reanimated";
+import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { scale, type Matrix4 } from "react-native-skia";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { identity4 } from "../../utils/transform";
 
 export type ChartTransformState = {
@@ -24,6 +20,8 @@ export const useChartTransformState = (
 ): {
   state: ChartTransformState;
 } => {
+  const panActive = useSharedValue(false);
+  const zoomActive = useSharedValue(false);
   const origin = useSharedValue({ x: 0, y: 0 });
   const matrix = useSharedValue(identity4);
   const offset = useSharedValue(identity4);
@@ -34,13 +32,13 @@ export const useChartTransformState = (
     matrix.value = scale(config?.scaleX ?? 1, config?.scaleY ?? 1);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return {
-    state: {
-      panActive: makeMutable(false),
-      zoomActive: makeMutable(false),
-      origin,
-      matrix,
-      offset,
-    },
-  };
+  // The same state for the lifetime of the component, so that gestures and
+  // reactions created in an earlier render keep referring to the values that
+  // are current.
+  const state = useMemo(
+    () => ({ panActive, zoomActive, origin, matrix, offset }),
+    [panActive, zoomActive, origin, matrix, offset],
+  );
+
+  return { state };
 };

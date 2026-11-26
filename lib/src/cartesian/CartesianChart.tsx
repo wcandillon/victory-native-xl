@@ -337,7 +337,7 @@ function CartesianChartContent<
 
   // create a d3-zoom transform object based on the current transform state. This
   // is used for rescaling the X and Y axes.
-  const transform = useCartesianTransform(transformState);
+  const { transform, transformSync } = useCartesianTransform(transformState);
   const zoomX = React.useMemo(
     () => createSafeZoomTransform(transform.k, transform.tx, transform.ty),
     [transform.k, transform.tx, transform.ty],
@@ -985,8 +985,12 @@ function CartesianChartContent<
     </CartesianTransformValueProvider>
   );
 
+  // Without gestures to detect, there is no need for a view over the canvas.
+  const hasGestures = Boolean(
+    customGestures || transformState || chartPressState,
+  );
   let gestureOverlay: React.ReactNode;
-  if (!isHeadless) {
+  if (!isHeadless && hasGestures) {
     let composed = customGestures ?? Gesture.Race();
     if (transformState) {
       let gestures = Gesture.Simultaneous();
@@ -1017,17 +1021,20 @@ function CartesianChartContent<
   }
 
   return (
-    <CartesianCanvas
-      isHeadless={isHeadless}
-      explicitSize={explicitSize}
-      onLayout={onLayout}
-      hasMeasuredLayoutSize={hasMeasuredLayoutSize}
-      canvasSize={size}
-      canvasRef={canvasRef}
-      gestureOverlay={gestureOverlay}
-      contexts={contexts}
-    >
-      {chartContent}
-    </CartesianCanvas>
+    <>
+      {transformSync}
+      <CartesianCanvas
+        isHeadless={isHeadless}
+        explicitSize={explicitSize}
+        onLayout={onLayout}
+        hasMeasuredLayoutSize={hasMeasuredLayoutSize}
+        canvasSize={size}
+        canvasRef={canvasRef}
+        gestureOverlay={gestureOverlay}
+        contexts={contexts}
+      >
+        {chartContent}
+      </CartesianCanvas>
+    </>
   );
 }

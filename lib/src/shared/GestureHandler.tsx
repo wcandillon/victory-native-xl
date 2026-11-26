@@ -2,7 +2,8 @@ import {
   GestureDetector,
   type GestureType,
 } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
+import { StyleSheet } from "react-native";
 import * as React from "react";
 import type { GestureHandlerConfig } from "../types";
 import type { ComposedGesture } from "./gestureTypes";
@@ -17,19 +18,28 @@ export const GestureHandler = ({
   debug = false,
   config,
 }: GestureHandlerProps) => {
-  const style = useAnimatedStyle(() => {
-    return {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      backgroundColor: debug ? "rgba(100, 200, 255, 0.4)" : "transparent",
-    };
-  });
   return (
     <GestureDetector {...config} gesture={gesture}>
-      <Animated.View style={style} />
+      <Animated.View style={debug ? styles.debugOverlay : styles.overlay} />
     </GestureDetector>
   );
 };
+
+const overlay = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+} as const;
+
+const styles = StyleSheet.create({
+  overlay: {
+    ...overlay,
+    backgroundColor: "transparent",
+  },
+  debugOverlay: {
+    ...overlay,
+    backgroundColor: "rgba(100, 200, 255, 0.4)",
+  },
+});

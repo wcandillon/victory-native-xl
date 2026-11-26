@@ -1,6 +1,7 @@
 import React, {
   createContext,
   type PropsWithChildren,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -36,47 +37,62 @@ export const CartesianTransformValueProvider = ({
   );
 };
 
-/**
- * Tracks the scale and translation of the chart's transform state on the JS
- * thread. The result is what `CartesianTransformValueProvider` provides to the
- * content of the chart.
- */
-export const useCartesianTransform = (
-  transformState?: ChartTransformState,
-): CartesianTransformContextValue => {
-  const [transform, setTransform] = useState<CartesianTransformContextValue>(
-    () => {
-      const components = getTransformComponents(undefined);
-      return {
-        k: components.scaleX,
-        kx: components.scaleX,
-        ky: components.scaleY,
-        tx: components.translateX,
-        ty: components.translateY,
-      };
-    },
-  );
+type TransformComponents = ReturnType<typeof getTransformComponents>;
 
+const toContextValue = ({
+  scaleX,
+  scaleY,
+  translateX,
+  translateY,
+}: TransformComponents): CartesianTransformContextValue => ({
+  k: scaleX,
+  kx: scaleX,
+  ky: scaleY,
+  tx: translateX,
+  ty: translateY,
+});
+
+// What a chart without a transform state, or one that was not panned or
+// zoomed yet, is transformed by.
+const IDENTITY = toContextValue(getTransformComponents(undefined));
+
+const isSameTransform = (
+  a: CartesianTransformContextValue,
+  b: CartesianTransformContextValue,
+) =>
+  a.k === b.k &&
+  a.kx === b.kx &&
+  a.ky === b.ky &&
+  a.tx === b.tx &&
+  a.ty === b.ty;
+
+type CartesianTransformSyncProps = {
+  transformState: ChartTransformState;
+  onChange: (transform: CartesianTransformContextValue) => void;
+};
+
+/**
+ * Reports the scale and translation of `transformState` to the JS thread as
+ * they change. It renders nothing: it is a component so that a chart without
+ * a transform state does not set up an animated reaction at all.
+ */
+const CartesianTransformSync = ({
+  transformState,
+  onChange,
+}: CartesianTransformSyncProps) => {
   // This is done in a useEffect to prevent Reanimated warning
   // about setting shared value in the render phase
   useEffect(() => {
-    if (transformState) {
-      setTransform(() => {
-        const components = getTransformComponents(transformState.matrix.value);
-        return {
-          k: components.scaleX,
-          kx: components.scaleX,
-          ky: components.scaleY,
-          tx: components.translateX,
-          ty: components.translateY,
-        };
-      });
-    }
+    onChange(
+      toContextValue(getTransformComponents(transformState.matrix.value)),
+    );
+    // Without a transform state, the chart is not transformed anymore.
+    return () => onChange(IDENTITY);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useAnimatedReaction(
     () => {
-      return getTransformComponents(transformState?.matrix.value);
+      return getTransformComponents(transformState.matrix.value);
     },
     (cv, pv) => {
       if (
@@ -85,7 +101,7 @@ export const useCartesianTransform = (
         cv.translateX !== pv.translateX ||
         cv.translateY !== pv.translateY
       ) {
-        runOnJS(setTransform)({
+        runOnJS(onChange)({
           k: cv.scaleX,
           kx: cv.scaleX,
           ky: cv.scaleY,
@@ -96,7 +112,36 @@ export const useCartesianTransform = (
     },
   );
 
-  return transform;
+  return null;
+};
+
+/**
+ * Tracks the scale and translation of the chart's transform state on the JS
+ * thread. `transform` is what `CartesianTransformValueProvider` provides to
+ * the content of the chart, and `transformSync` is the element that keeps it
+ * up to date, to render next to the chart. It is `null` for a chart without a
+ * transform state, which then does no work for pan and zoom.
+ */
+export const useCartesianTransform = (transformState?: ChartTransformState) => {
+  const [transform, setTransform] = useState(IDENTITY);
+
+  // An animated reaction always runs once when it is set up. Keeping the
+  // current value when nothing changed avoids rendering the chart a second
+  // time on mount for that.
+  const onChange = useCallback((next: CartesianTransformContextValue) => {
+    setTransform((current) =>
+      isSameTransform(current, next) ? current : next,
+    );
+  }, []);
+
+  const transformSync = transformState ? (
+    <CartesianTransformSync
+      transformState={transformState}
+      onChange={onChange}
+    />
+  ) : null;
+
+  return { transform, transformSync };
 };
 
 export const useCartesianTransformContext = () => {
