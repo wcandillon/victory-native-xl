@@ -6,12 +6,12 @@ import {
   type SkFont,
   type SkPoint,
 } from "react-native-skia";
-import type { ZoomTransform } from "d3-zoom";
 import type {
   UserSelect,
   TouchAction,
 } from "react-native-gesture-handler/lib/typescript/handlers/gestureHandlerCommon";
 import type { PanGesture } from "./shared/gestureTypes";
+import type { ZoomTransform } from "./cartesian/utils/createSafeZoomTransform";
 
 export type PrimitiveViewWindow = {
   xMin: number;

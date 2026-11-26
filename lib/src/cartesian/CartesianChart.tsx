@@ -4,7 +4,6 @@ import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { Gesture, type TouchData } from "react-native-gesture-handler";
 import { type MutableRefObject } from "react";
 import type { ScaleLinear, ScaleLogarithmic } from "d3-scale";
-import isEqual from "react-fast-compare";
 import type {
   AxisProps,
   CartesianChartRenderArg,
@@ -61,6 +60,7 @@ import {
   useContextBridge,
 } from "../shared/useContextBridge";
 import { boundsToClip } from "../utils/boundsToClip";
+import { isDeepEqual } from "../utils/isDeepEqual";
 import { normalizeYAxisTicks } from "../utils/normalizeYAxisTicks";
 import { applyChartPressPanConfig } from "./utils/applyChartPressPanConfig";
 import { createFallbackChartState } from "./utils/createFallbackChartState";
@@ -335,7 +335,7 @@ function CartesianChartContent<
   });
   const axisScales = axisOptions?.axisScales;
 
-  // create a d3-zoom transform object based on the current transform state. This
+  // create a zoom transform object based on the current transform state. This
   // is used for rescaling the X and Y axes.
   const { transform, transformSync } = useCartesianTransform(transformState);
   const zoomX = React.useMemo(
@@ -835,7 +835,7 @@ function CartesianChartContent<
   // On bounds change, emit
   const onChartBoundsRef = useFunctionRef(onChartBoundsChange);
   React.useEffect(() => {
-    if (!isEqual(chartBounds, chartBoundsRef.current)) {
+    if (!isDeepEqual(chartBounds, chartBoundsRef.current)) {
       chartBoundsRef.current = chartBounds;
       onChartBoundsRef.current?.(chartBounds);
     }
@@ -846,10 +846,10 @@ function CartesianChartContent<
     const rescaledX = zoomX.rescaleX(xScale);
     const rescaledY = zoomY.rescaleY(primaryYScale);
     if (
-      !isEqual(xScaleRef.current?.domain(), rescaledX.domain()) ||
-      !isEqual(yScaleRef.current?.domain(), rescaledY.domain()) ||
-      !isEqual(xScaleRef.current?.range(), rescaledX.range()) ||
-      !isEqual(yScaleRef.current?.range(), rescaledY.range())
+      !isDeepEqual(xScaleRef.current?.domain(), rescaledX.domain()) ||
+      !isDeepEqual(yScaleRef.current?.domain(), rescaledY.domain()) ||
+      !isDeepEqual(xScaleRef.current?.range(), rescaledX.range()) ||
+      !isDeepEqual(yScaleRef.current?.range(), rescaledY.range())
     ) {
       xScaleRef.current = xScale;
       yScaleRef.current = primaryYScale;

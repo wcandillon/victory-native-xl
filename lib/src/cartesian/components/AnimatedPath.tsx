@@ -6,7 +6,7 @@ import {
   makeMutable,
   type SharedValue,
 } from "react-native-reanimated";
-import isEqual from "react-fast-compare";
+import { isDeepEqual } from "../../utils/isDeepEqual";
 import { usePrevious } from "../../utils/usePrevious";
 import {
   type PathAnimationConfig,
@@ -42,7 +42,7 @@ export function AnimatedPath({
 
   // Sync props to shared values when values change
   React.useEffect(() => {
-    if (!isEqual(rest, prevRest)) {
+    if (!isDeepEqual(rest, prevRest)) {
       syncPropsToSharedValues(rest, animProps);
     }
   }, [rest, prevRest, animProps]);
